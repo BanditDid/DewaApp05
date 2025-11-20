@@ -3,8 +3,8 @@ import { generateId, calculateAge } from '../utils';
 
 // --- การตั้งค่า (CONFIGURATION) ---
 // คำเตือน: คุณต้องสร้าง Project ใน Google Cloud Console และเปิดใช้งาน Drive API, Sheets API
-const CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // **นำ Client ID มาใส่ที่นี่**
-const API_KEY = 'YOUR_API_KEY_HERE';     // **นำ API Key มาใส่ที่นี่**
+const CLIENT_ID = process.env.YOUR_CLIENT_ID_HERE; // **นำ Client ID มาใส่ที่นี่**
+const API_KEY = process.env.YOUR_API_KEY_HERE;     // **นำ API Key มาใส่ที่นี่**
 
 // Scopes ที่ต้องขออนุญาต: Drive (จัดการไฟล์), Sheets (จัดการข้อมูล)
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
