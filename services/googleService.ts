@@ -2,9 +2,9 @@ import { JournalEntry, User, BabyProfile, Photo } from '../types';
 import { generateId, calculateAge } from '../utils';
 
 // --- การตั้งค่า (CONFIGURATION) ---
-// หมายเหตุ: ในโปรเจกต์จริง ควรเก็บค่าเหล่านี้ใน Environment Variables (.env)
-const CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // **ต้องใส่ Client ID จาก Google Cloud Console**
-const API_KEY = 'YOUR_API_KEY_HERE';     // **ต้องใส่ API Key จาก Google Cloud Console**
+// คำเตือน: คุณต้องสร้าง Project ใน Google Cloud Console และเปิดใช้งาน Drive API, Sheets API
+const CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // **นำ Client ID มาใส่ที่นี่**
+const API_KEY = 'YOUR_API_KEY_HERE';     // **นำ API Key มาใส่ที่นี่**
 
 // Scopes ที่ต้องขออนุญาต: Drive (จัดการไฟล์), Sheets (จัดการข้อมูล)
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
@@ -26,57 +26,93 @@ export const GoogleService = {
 
   // 1. เริ่มต้นระบบ (Initialize)
   initClient: async (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      // โหลด GAPI Client
-      (window as any).gapi.load('client', async () => {
-        await (window as any).gapi.client.init({
-          apiKey: API_KEY,
-          discoveryDocs: DISCOVERY_DOCS,
-        });
-        gapiInited = true;
-        if (gisInited) resolve();
-      });
+    // ตรวจสอบว่ามีการตั้งค่า Key หรือยัง
+    if (CLIENT_ID === 'YOUR_CLIENT_ID_HERE' || API_KEY === 'YOUR_API_KEY_HERE') {
+      throw new Error('กรุณาตั้งค่า CLIENT_ID และ API_KEY ในไฟล์ services/googleService.ts ก่อนใช้งาน');
+    }
 
-      // โหลด GIS Client (Google Identity Services)
-      GoogleService.tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: '', // จะกำหนดตอนเรียก requestAccessToken
-      });
-      gisInited = true;
-      if (gapiInited) resolve();
+    // รอให้ Script ของ Google โหลดเข้ามาใน window
+    const waitForScripts = () => new Promise<void>((resolve, reject) => {
+      const maxAttempts = 50; // รอประมาณ 5 วินาที
+      let attempts = 0;
+      
+      const interval = setInterval(() => {
+        attempts++;
+        if ((window as any).gapi && (window as any).google) {
+          clearInterval(interval);
+          resolve();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          reject(new Error("ไม่สามารถโหลด Google Scripts ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือ Adblock"));
+        }
+      }, 100);
+    });
+
+    await waitForScripts();
+
+    return new Promise((resolve, reject) => {
+      try {
+        // โหลด GAPI Client
+        (window as any).gapi.load('client', async () => {
+          try {
+            await (window as any).gapi.client.init({
+              apiKey: API_KEY,
+              discoveryDocs: DISCOVERY_DOCS,
+            });
+            gapiInited = true;
+            if (gisInited) resolve();
+          } catch (err: any) {
+            reject(new Error(`GAPI Init Error: ${err.result?.error?.message || JSON.stringify(err)}`));
+          }
+        });
+
+        // โหลด GIS Client (Google Identity Services)
+        GoogleService.tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: '', // จะกำหนดตอนเรียก requestAccessToken
+        });
+        gisInited = true;
+        if (gapiInited) resolve();
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 
   // 2. ล็อกอิน (Login)
   login: async (): Promise<User> => {
     return new Promise((resolve, reject) => {
-      GoogleService.tokenClient.callback = async (resp: any) => {
-        if (resp.error) {
-          reject(resp);
+      try {
+        GoogleService.tokenClient.callback = async (resp: any) => {
+          if (resp.error) {
+            reject(resp);
+          }
+          // ดึงข้อมูลผู้ใช้จาก Drive API (เพื่อเอาชื่อ/รูป)
+          try {
+            const response = await (window as any).gapi.client.drive.about.get({
+              fields: "user"
+            });
+            const userData = response.result.user;
+            resolve({
+              id: userData.permissionId,
+              name: userData.displayName,
+              email: userData.emailAddress,
+              avatarUrl: userData.photoLink
+            });
+          } catch (err) {
+            reject(err);
+          }
+        };
+        
+        // ขอ Token หรือขออนุญาต
+        if ((window as any).gapi.client.getToken() === null) {
+          GoogleService.tokenClient.requestAccessToken({prompt: 'consent'});
+        } else {
+          GoogleService.tokenClient.requestAccessToken({prompt: ''});
         }
-        // ดึงข้อมูลผู้ใช้จาก Drive API (เพื่อเอาชื่อ/รูป)
-        try {
-          const response = await (window as any).gapi.client.drive.about.get({
-            fields: "user"
-          });
-          const userData = response.result.user;
-          resolve({
-            id: userData.permissionId,
-            name: userData.displayName,
-            email: userData.emailAddress,
-            avatarUrl: userData.photoLink
-          });
-        } catch (err) {
-          reject(err);
-        }
-      };
-      
-      // ขอ Token หรือขออนุญาต
-      if ((window as any).gapi.client.getToken() === null) {
-        GoogleService.tokenClient.requestAccessToken({prompt: 'consent'});
-      } else {
-        GoogleService.tokenClient.requestAccessToken({prompt: ''});
+      } catch (e) {
+        reject(e);
       }
     });
   },

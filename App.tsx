@@ -17,7 +17,8 @@ const App: React.FC = () => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGoogleReady, setIsGoogleReady] = useState(false); // สถานะว่า Library โหลดเสร็จหรือยัง
-  
+  const [initError, setInitError] = useState<string | null>(null); // เก็บข้อความ Error
+
   // สถานะ UI
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -36,8 +37,10 @@ const App: React.FC = () => {
         await GoogleService.initClient();
         setIsGoogleReady(true);
         setIsLoading(false);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Failed to init Google Client", e);
+        setInitError(e.message || "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุในการเชื่อมต่อกับ Google");
+        setIsLoading(false);
       }
     };
     initGoogle();
@@ -130,10 +133,45 @@ const App: React.FC = () => {
     });
   }, [entries, searchTerm, selectedFilterTag, selectedAgeFilter]);
 
-  if (!isGoogleReady) {
-     return <div className="min-h-screen flex items-center justify-center font-sans text-gray-500">กำลังเชื่อมต่อกับ Google Services...</div>;
+  // --- ส่วนแสดงผล (RENDER) ---
+
+  // 1. แสดง Error ถ้า Init ไม่สำเร็จ
+  if (initError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 font-sans">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full text-center">
+          <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">การตั้งค่าไม่สมบูรณ์</h2>
+          <p className="text-gray-600 mb-6">{initError}</p>
+          <div className="bg-gray-100 p-4 rounded-lg text-left text-sm text-gray-700 mb-6 overflow-auto max-h-40">
+            <p className="font-bold mb-1">วิธีแก้ไข:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>เปิดไฟล์ <code>services/googleService.ts</code></li>
+              <li>ใส่ <strong>CLIENT_ID</strong> และ <strong>API_KEY</strong> ที่ได้จาก Google Cloud Console</li>
+              <li>ตรวจสอบว่า URL ของเว็บ (เช่น localhost) ถูกเพิ่มใน "Authorized JavaScript origins" บน Google Console แล้ว</li>
+            </ul>
+          </div>
+          <button onClick={() => window.location.reload()} className="bg-primary-500 text-white px-6 py-2 rounded-lg hover:bg-primary-600 transition-colors">
+            ลองใหม่อีกครั้ง
+          </button>
+        </div>
+      </div>
+    );
   }
 
+  // 2. แสดง Loading
+  if (!isGoogleReady) {
+     return (
+      <div className="min-h-screen flex flex-col items-center justify-center font-sans text-gray-500 gap-4 bg-gray-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
+        <p>กำลังเชื่อมต่อกับ Google Services...</p>
+      </div>
+     );
+  }
+
+  // 3. แสดงหน้า Login (ถ้ายังไม่ Login)
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-white p-4 font-sans">
@@ -154,12 +192,12 @@ const App: React.FC = () => {
             <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-6 h-6" alt="Google" />
             {isLoading ? 'กำลังดำเนินการ...' : 'เข้าสู่ระบบด้วย Google'}
           </button>
-          <p className="text-xs text-red-400 mt-4">*ต้องตั้งค่า Client ID/API Key ใน Code ก่อนใช้งาน</p>
         </div>
       </div>
     );
   }
 
+  // 4. แสดงหน้า Setup Profile (ถ้า Login แล้วแต่ไม่มีข้อมูลเด็ก)
   if (!profile) {
     return (
       <div className="min-h-screen bg-primary-50 flex items-center justify-center p-4 font-sans">
@@ -181,6 +219,7 @@ const App: React.FC = () => {
     );
   }
 
+  // 5. แสดงหน้าหลัก (Main App)
   return (
     <div className="min-h-screen bg-primary-50 pb-20 md:pb-10 font-sans">
       {/* Navbar */}
