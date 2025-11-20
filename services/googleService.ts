@@ -2,9 +2,10 @@ import { JournalEntry, User, BabyProfile, Photo } from '../types';
 import { generateId, calculateAge } from '../utils';
 
 // --- การตั้งค่า (CONFIGURATION) ---
-// คำเตือน: คุณต้องสร้าง Project ใน Google Cloud Console และเปิดใช้งาน Drive API, Sheets API
-const CLIENT_ID = process.env.YOUR_CLIENT_ID_HERE; // **นำ Client ID มาใส่ที่นี่**
-const API_KEY = process.env.YOUR_API_KEY_HERE;     // **นำ API Key มาใส่ที่นี่**
+// เราจะอ่านค่าจาก Environment Variables แทนการเขียนใส่โค้ดโดยตรง
+// ใน Next.js/Vercel ตัวแปรที่ใช้ฝั่ง Client ต้องขึ้นต้นด้วย NEXT_PUBLIC_
+const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''; 
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
 
 // Scopes ที่ต้องขออนุญาต: Drive (จัดการไฟล์), Sheets (จัดการข้อมูล)
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
@@ -27,8 +28,8 @@ export const GoogleService = {
   // 1. เริ่มต้นระบบ (Initialize)
   initClient: async (): Promise<void> => {
     // ตรวจสอบว่ามีการตั้งค่า Key หรือยัง
-    if (CLIENT_ID === 'YOUR_CLIENT_ID_HERE' || API_KEY === 'YOUR_API_KEY_HERE') {
-      throw new Error('กรุณาตั้งค่า CLIENT_ID และ API_KEY ในไฟล์ services/googleService.ts ก่อนใช้งาน');
+    if (!CLIENT_ID || !API_KEY) {
+      throw new Error('ไม่พบการตั้งค่า Environment Variables กรุณาเพิ่ม NEXT_PUBLIC_GOOGLE_CLIENT_ID และ NEXT_PUBLIC_GOOGLE_API_KEY ใน Vercel');
     }
 
     // รอให้ Script ของ Google โหลดเข้ามาใน window
