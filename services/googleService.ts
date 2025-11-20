@@ -4,8 +4,8 @@ import { generateId, calculateAge } from '../utils';
 // --- การตั้งค่า (CONFIGURATION) ---
 // เราจะอ่านค่าจาก Environment Variables แทนการเขียนใส่โค้ดโดยตรง
 // ใน Next.js/Vercel ตัวแปรที่ใช้ฝั่ง Client ต้องขึ้นต้นด้วย NEXT_PUBLIC_
-const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''; 
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
+const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID; 
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 // Scopes ที่ต้องขออนุญาต: Drive (จัดการไฟล์), Sheets (จัดการข้อมูล)
 const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
